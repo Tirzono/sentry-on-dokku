@@ -1,5 +1,9 @@
-Sentry on Heroku
+Sentry on Dokku
 ================
+
+This repository is forked from `Sentry on Heroku`_ and adjusted to run on Dokku.
+
+.. _Sentry on Heroku: https://github.com/fastmonkeys/sentry-on-heroku
 
     Sentry_ is a realtime event logging and aggregation platform.  At its core
     it specializes in monitoring errors and extracting all the information
@@ -9,76 +13,67 @@ Sentry on Heroku
     .. _Sentry: https://github.com/getsentry/sentry
 
 
-Quick setup
------------
-
-Click the button below to automatically set up the Sentry in an app running on
-your Heroku account.
-
-.. image:: https://www.herokucdn.com/deploy/button.png
-   :target: https://heroku.com/deploy
-   :alt: Deploy
-
-Finally, you need to setup your first user::
-
-    heroku run "sentry --config=sentry.conf.py createuser" --app YOURAPPNAME
-
 
 Manual setup
 ------------
 
 Follow the steps below to get Sentry up and running on Heroku:
 
-1. Create a new Heroku application. Replace "APP_NAME" with your
-   application's name::
+1. Create a new Dokku application::
 
-        heroku apps:create APP_NAME
+        dokku apps:create sentry
 
 2. Add PostgresSQL to the application::
 
-        heroku addons:create heroku-postgresql:hobby-dev
+        sudo dokku plugin:install https://github.com/dokku/dokku-postgres.git postgres
+        dokku postgres:create sentry
+        dokku postgres:link sentry sentry
 
 3. Add Redis to the application::
 
-        heroku addons:create heroku-redis:premium-0
+        sudo dokku plugin:install https://github.com/dokku/dokku-redis.git redis
+        dokku redis:create sentry
+        dokku redis:link sentry sentry
 
 4. Set Django's secret key for cryptographic signing and Sentry's shared secret
    for global administration privileges::
 
-        heroku config:set SECRET_KEY=$(python -c "import base64, os; print(base64.b64encode(os.urandom(40)).decode())")
+        dokku config:set --no-restart sentry SECRET_KEY=$(python -c "import base64, os; print(base64.b64encode(os.urandom(40)).decode())")
 
 5. Set the absolute URL to the Sentry root directory. The URL should not include
    a trailing slash. Replace the URL below with your application's URL::
 
-        heroku config:set SENTRY_URL_PREFIX=https://sentry-example.herokuapp.com
+        dokku config:set --no-restart sentry SENTRY_URL_PREFIX=https://sentry.dokku.me
 
-6. Deploy Sentry to Heroku::
+6. Deploy Sentry to Dokku::
 
-        git push heroku master
+        git push dokku master
 
-7. Sentry's database migrations are automatically run as part of the Heroku `release phase`_ ::
+7. Sentry's database migrations are automatically run as part of the Dokku post deploy::
 
-        heroku run "sentry --config=sentry.conf.py upgrade --noinput"
+        dokku run sentry "sentry --config=sentry.conf.py upgrade --noinput"
 
 8. Create a user account for yourself::
 
-        heroku run "sentry --config=sentry.conf.py createuser"
+        dokku run sentry "sentry --config=sentry.conf.py createuser"
 
 That's it!
 
-.. _release phase: https://devcenter.heroku.com/articles/release-phase
 
 
+SSL Certificate
+---------------
 
-Email notifications
--------------------
+Follow the steps below, if you want to add a SSL certificate with Letsencrypt:
 
-Follow the steps below, if you want to enable Sentry's email notifications:
+1. Install the letsencrypt plugin::
 
-1. Add SendGrid add-on to your Heroku application::
+        sudo dokku plugin:install https://github.com/dokku/dokku-letsencrypt.git
 
-        heroku addons:create sendgrid
+2. Set the administrator email address::
 
-2. Set the reply-to email address for outgoing mail::
+        dokku config:set --no-restart sentry DOKKU_LETSENCRYPT_EMAIL=your@email.tld
 
-        heroku config:set SERVER_EMAIL=sentry@example.com
+3. Request a SSL certificate::
+
+        dokku letsencrypt sentry
